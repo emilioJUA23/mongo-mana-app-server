@@ -6,20 +6,6 @@ var app = express();
 var bodyParser = require('body-parser');
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
-var decks = {"decks":[
-    { id: 1, name: 'Aggro',
-      red:0,white:0,black:0,blue:0,green:0,lands:0},
-    { id: 2, name: 'Azorius',
-      red:0,white:0,black:0,blue:0,green:0,lands:0 },
-    { id: 3, name: 'Golgari',
-      red:0,white:0,black:0,blue:0,green:0,lands:0 },
-    { id: 4, name: 'Mana Rampage',
-      red:0,white:0,black:0,blue:0,green:0,lands:0 },
-    { id: 5, name: 'Eldrazi Rampage',
-      red:0,white:0,black:0,blue:0,green:0,lands:0 },
-    { id: 6, name: 'Control',
-      red:0,white:0,black:0,blue:0,green:0,lands:0 }
-  ]};
   
 //declaracion de los servicios API
 app.get("/api/v1/deck/:id?", (req, res) => {
@@ -77,9 +63,9 @@ app.put("/api/v1/deck/:id", (req, res) => {
     })
    });
 
-   app.delete("/api/v1/deck/:id", (req, res) => {
+app.delete("/api/v1/deck/:id", (req, res) => {
     var id = req.params.id;
-    // var filtered_decks = decks.decks.filter(x => x.name==id)
+// var filtered_decks = decks.decks.filter(x => x.name==id)
     GetDeck(id).then(function(results) {
         if( results===[] )
         { 
@@ -96,7 +82,7 @@ app.put("/api/v1/deck/:id", (req, res) => {
             res.end();
         }
         })
-   });
+});
 
 function GetDecks()
 {
