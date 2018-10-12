@@ -52,47 +52,50 @@ app.post('/api/v1/deck', function(req, res) {
 
 app.put("/api/v1/deck/:id", (req, res) => {
     var id = req.params.id;
-    var filtered_decks = decks.decks.filter(x => x.name==id)
-    console.log(filtered_decks);
-    if( filtered_decks.length>0 )
-    { 
-        //mandar a cambiar el deck
-        for(var d in decks.decks)
-        {
-            if(decks.decks[d].name==id)
-            {
-                decks.decks[d] = req.body;
-            }
-        }
-        res.writeHead(200, {"Content-Type": "text/plain"});
-        res.write("ok");
-        res.end();
-    }
-    else
-    {
-        res.writeHead(404, {"Content-Type": "text/plain"});
-        res.write("404 Not found");
-        res.end();
-    }
-   });
-
-   app.delete("/api/v1/deck/:id", (req, res) => {
-    var id = req.params.id;
-    var filtered_decks = decks.decks.filter(x => x.name==id)
-    if( filtered_decks.length>0 )
+    var body = req.body;
+    GetDeck(id).then(function(results) {
+        if( results===[] )
         { 
             // decks.decks.splice(x => x.id !==id)
-            decks.decks = decks.decks.filter(x => x.name!==id)
-            res.writeHead(200, {"Content-Type": "text/plain"});
-            res.write("ok");
-            res.end();
-        }
-        else
-        {
             res.writeHead(404, {"Content-Type": "text/plain"});
             res.write("404 Not found");
             res.end();
         }
+        else
+        {
+            deleteDeck(id).then(function(results)
+            {
+                insertDeck(body);
+                res.writeHead(200, {"Content-Type": "text/plain"});
+                res.write("ok");
+                res.end();
+            });
+            res.writeHead(200, {"Content-Type": "text/plain"});
+            res.write("ok");
+            res.end();
+        }
+    })
+   });
+
+   app.delete("/api/v1/deck/:id", (req, res) => {
+    var id = req.params.id;
+    // var filtered_decks = decks.decks.filter(x => x.name==id)
+    GetDeck(id).then(function(results) {
+        if( results===[] )
+        { 
+            // decks.decks.splice(x => x.id !==id)
+            res.writeHead(404, {"Content-Type": "text/plain"});
+            res.write("404 Not found");
+            res.end();
+        }
+        else
+        {
+            deleteDeck(id);
+            res.writeHead(200, {"Content-Type": "text/plain"});
+            res.write("ok");
+            res.end();
+        }
+        })
    });
 
 function GetDecks()
@@ -144,6 +147,25 @@ function insertDeck(myobj)
           db.close();
         });
       });
+}
+
+function deleteDeck(id)
+{
+    return new Promise(function(resolve,reject){
+        MongoClient.connect(url, function(err, db) {
+            if (err) return reject(err.message);
+            var dbo = db.db("manaApp");
+            var myquery = { address: 'Mountain 21' };
+            var ObjectId = require('mongodb').ObjectID;
+            var query = {_id: new ObjectId(id)};
+            dbo.collection("decks").deleteOne(query, function(err, obj) {
+                if (err) return reject(err.message);
+                console.log("1 document deleted");
+                db.close();
+                return resolve("ok");
+            });
+        });
+    });
 }
 
 //levantamos el servidor
