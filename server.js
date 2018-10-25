@@ -6,7 +6,21 @@ var app = express();
 var bodyParser = require('body-parser');
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
-  
+
+app.use(function(req, res, next) {
+    res.header('Access-Control-Allow-Origin', req.get('Origin') || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+    res.header('Access-Control-Expose-Headers', 'Content-Length');
+    res.header('Access-Control-Allow-Headers', 'Accept, Authorization, Content-Type, X-Requested-With, Range');
+    if (req.method === 'OPTIONS') {
+      // console.log(req);
+      return res.send(200);
+    } else {
+      return next();
+    }
+  });
+
 //declaracion de los servicios API
 app.get("/api/v1/deck/:id?", (req, res) => {
     var id = req.params.id;
@@ -20,10 +34,20 @@ app.get("/api/v1/deck/:id?", (req, res) => {
     }
     else
     {
+        console.log("this is the id: "+id);
         GetDeck(id).then(function(results) {
-            res.writeHead(200, {"Content-Type": "application/json"});
-            res.write(JSON.stringify(results));
-            res.end();
+                if(results.length==0)
+                {
+                    res.writeHead(404, {"Content-Type": "application/json"});
+                    res.write(JSON.stringify(results));
+                    res.end();   
+                }
+                else
+                {
+                    res.writeHead(200, {"Content-Type": "application/json"});
+                    res.write(JSON.stringify(results[0]));
+                    res.end();
+                }
             })
     }
    });
