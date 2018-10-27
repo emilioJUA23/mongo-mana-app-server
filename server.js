@@ -4,6 +4,8 @@ var url = "mongodb://localhost:27017/";
 var express = require("express");
 var app = express();
 var bodyParser = require('body-parser');
+var redis = require("redis");
+var redis_client = redis.createClient();
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
@@ -34,7 +36,6 @@ app.get("/api/v1/deck/:id?", (req, res) => {
     }
     else
     {
-        console.log("this is the id: "+id);
         GetDeck(id).then(function(results) {
                 if(results.length==0)
                 {
@@ -80,20 +81,15 @@ app.put("/api/v1/deck/:id", (req, res) => {
                 res.write("ok");
                 res.end();
             });
-            res.writeHead(200, {"Content-Type": "text/plain"});
-            res.write("ok");
-            res.end();
         }
     })
    });
 
 app.delete("/api/v1/deck/:id", (req, res) => {
     var id = req.params.id;
-// var filtered_decks = decks.decks.filter(x => x.name==id)
     GetDeck(id).then(function(results) {
         if( results===[] )
         { 
-            // decks.decks.splice(x => x.id !==id)
             res.writeHead(404, {"Content-Type": "text/plain"});
             res.write("404 Not found");
             res.end();
@@ -125,23 +121,48 @@ function GetDecks()
         })
     })
 }
+
 function GetDeck(id)
 {
     return new Promise(function(resolve,reject){
-    MongoClient.connect(url, function(err, db) {
-        if (err) return reject('Fallo la conexion a la base de datos');
-        console.log("connected to Database");
-        var dbo = db.db("manaApp");
-        var ObjectId = require('mongodb').ObjectID;
-        var query = {_id: new ObjectId(id)};
-        dbo.collection("decks").find(query).toArray( function(err, result) {
-            if (err) return reject('Fallo el query a la base de datos');
-            resolve(result);
-            console.log("query executed");
-            db.close();
-            console.log("conection Closed");
+        redis_lookup(id).then(function(redis_results){
+            
+            if (redis_results === JSON.parse(null))
+            {
+                console.log("DB consulted for record");
+                resolve(GetDeck_mongo(id));
+            }
+            else
+            {
+                console.log("Record consulted in redis");
+                console.log(redis_results);
+                resolve([redis_results]);
+            }
+        });
+    })
+
+}
+
+function GetDeck_mongo(id)
+{
+    return new Promise(function(resolve,reject){
+        MongoClient.connect(url, function(err, db) {
+            if (err) return reject('Fallo la conexion a la base de datos');
+            console.log("connected to Database");
+            var dbo = db.db("manaApp");
+            var ObjectId = require('mongodb').ObjectID;
+            var query = {_id: new ObjectId(id)};
+            dbo.collection("decks").find(query).toArray( function(err, result) {
+                if (err) return reject('Fallo el query a la base de datos');
+                if(result.length==1){
+                    redis_insert(id,result[0]);
+                }
+                resolve(result);
+                console.log("query executed");
+                db.close();
+                console.log("conection Closed");
+                })
             })
-        })
     })
 }
 
@@ -154,6 +175,7 @@ function insertDeck(myobj)
         dbo.collection("decks").insertOne(myobj, function(err, res) {
           if (err) throw err;
           console.log("1 document inserted");
+          redis_insert(res.insertedId,res.ops[0]);
           db.close();
         });
       });
@@ -162,20 +184,40 @@ function insertDeck(myobj)
 function deleteDeck(id)
 {
     return new Promise(function(resolve,reject){
+        redis_delete(id)
         MongoClient.connect(url, function(err, db) {
             if (err) return reject(err.message);
             var dbo = db.db("manaApp");
-            var myquery = { address: 'Mountain 21' };
             var ObjectId = require('mongodb').ObjectID;
             var query = {_id: new ObjectId(id)};
             dbo.collection("decks").deleteOne(query, function(err, obj) {
                 if (err) return reject(err.message);
                 console.log("1 document deleted");
-                db.close();
+                db.close(); 
                 return resolve("ok");
             });
         });
     });
+}
+
+function redis_lookup(id)
+{
+    return new Promise(function(resolve,reject){
+        redis_client.get(id, function(error, result) {
+            if (error) reject('Fallo en lectura de redis');
+            else resolve(JSON.parse(result));
+        });
+    });
+}
+function redis_insert(id,object)
+{
+    redis_client.set(id, JSON.stringify(object), redis.print);
+}
+
+function redis_delete(id)
+{
+    console.log("Record from redis erased");
+    redis_client.del(id);
 }
 
 //levantamos el servidor
